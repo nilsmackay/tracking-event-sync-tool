@@ -309,7 +309,7 @@ export function SyncPage() {
 
           {/* Frame info */}
           <div className="info-section">
-            <div className="info-label">Current Frame</div>
+            <div className="info-label">Current Time</div>
             <div className="info-value">{currentTime ?? '—'}ms</div>
             <div className="info-subtext">
               {currentTime !== null && currentEvent ? (
@@ -319,7 +319,7 @@ export function SyncPage() {
           </div>
 
           <div className="info-section">
-            <div className="info-label">Frame</div>
+            <div className="info-label">Current Frame</div>
             <div className="info-value">{frameIdx + 1} / {totalFrames}</div>
             <div className="info-subtext">{frameOffset >= 0 ? '+' : ''}{frameOffset} frames</div>
           </div>
