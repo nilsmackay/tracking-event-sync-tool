@@ -205,6 +205,72 @@ export function SyncPage() {
     e.target.value = '';
   }, [uploadResults]);
 
+  // Keyboard arrow keys for frame navigation (hold to repeat at 50ms)
+  const heldKeyRef = useRef<string | null>(null);
+  const delayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const repeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const clearRepeat = () => {
+      if (delayTimerRef.current !== null) {
+        clearTimeout(delayTimerRef.current);
+        delayTimerRef.current = null;
+      }
+      if (repeatTimerRef.current !== null) {
+        clearInterval(repeatTimerRef.current);
+        repeatTimerRef.current = null;
+      }
+      heldKeyRef.current = null;
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept when typing in an input/textarea/select
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+
+      // Ignore browser-generated repeats; we handle our own interval
+      if (e.repeat) {
+        e.preventDefault();
+        return;
+      }
+
+      e.preventDefault();
+
+      const delta = e.key === 'ArrowLeft' ? -1 : 1;
+
+      // Immediate first step
+      adjustFrameOffset(delta);
+
+      // Start repeat: initial delay, then fast interval
+      heldKeyRef.current = e.key;
+      delayTimerRef.current = setTimeout(() => {
+        delayTimerRef.current = null;
+        repeatTimerRef.current = setInterval(() => {
+          adjustFrameOffset(delta);
+        }, 50);
+      }, 300);
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === heldKeyRef.current) {
+        clearRepeat();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', clearRepeat);
+
+    return () => {
+      clearRepeat();
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', clearRepeat);
+    };
+  }, [adjustFrameOffset]);
+
   // Jump to event handler
   const [jumpValue, setJumpValue] = useState(currentEventIndex);
 
