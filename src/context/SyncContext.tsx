@@ -37,6 +37,9 @@ interface SyncContextType extends AppState {
 
   // Export
   downloadResults: () => void;
+
+  // Import
+  uploadResults: (results: SyncedResults) => Promise<void>;
 }
 
 const SyncContext = createContext<SyncContextType | null>(null);
@@ -285,6 +288,23 @@ export function SyncProvider({ children }: SyncProviderProps) {
     URL.revokeObjectURL(url);
   }, [syncedResults, metadata]);
 
+  // Upload results from JSON
+  const uploadResults = useCallback(async (results: SyncedResults) => {
+    if (!eventsData || !trackingData) return;
+
+    // Clear existing synced results and replace with uploaded ones
+    setSyncedResults(results);
+    await saveSyncedResults(results);
+
+    // Jump to first unsynced event
+    const firstUnsynced = findFirstUnsynced(0, eventsData, results);
+    setCurrentEventIndex(firstUnsynced);
+
+    const offset = updateOffsetForEvent(firstUnsynced, eventsData, trackingData, results, 0);
+    setFrameOffset(offset);
+    setLastSyncOffset(0);
+  }, [eventsData, trackingData, findFirstUnsynced, updateOffsetForEvent]);
+
   // Load from storage on mount
   useEffect(() => {
     loadFromStorage();
@@ -313,6 +333,7 @@ export function SyncProvider({ children }: SyncProviderProps) {
     syncCurrentEvent,
     skipEvent,
     downloadResults,
+    uploadResults,
   };
 
   return (

@@ -1,9 +1,9 @@
-import { useMemo, useCallback, useState, useEffect } from 'react';
+import { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import { useSyncContext } from '../context/SyncContext';
 import { PitchSVG } from './PitchSVG';
 import { FrameSlider } from './FrameSlider';
 import { SyncInstructions, getEventCategory } from './SyncInstructions';
-import type { TrackingRow, EventRow } from '../types';
+import type { TrackingRow, EventRow, SyncedResults } from '../types';
 
 export function SyncPage() {
   const {
@@ -22,6 +22,7 @@ export function SyncPage() {
     syncCurrentEvent,
     skipEvent,
     downloadResults,
+    uploadResults,
     resetAll,
   } = useSyncContext();
 
@@ -152,6 +153,58 @@ export function SyncPage() {
     setShowResetConfirm(false);
   }, []);
 
+  // Upload JSON state and handlers
+  const [showUploadConfirm, setShowUploadConfirm] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadClick = useCallback(() => {
+    if (Object.keys(syncedResults).length > 0) {
+      setShowUploadConfirm(true);
+    } else {
+      fileInputRef.current?.click();
+    }
+  }, [syncedResults]);
+
+  const handleUploadConfirm = useCallback(() => {
+    setShowUploadConfirm(false);
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleUploadCancel = useCallback(() => {
+    setShowUploadConfirm(false);
+  }, []);
+
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        alert('Failed to upload JSON: Invalid format — expected a JSON object');
+        return;
+      }
+
+      const results: SyncedResults = {};
+      for (const [key, value] of Object.entries(parsed)) {
+        if (typeof value !== 'number') {
+          alert(`Failed to upload JSON: Invalid value for event "${key}" — expected a number`);
+          return;
+        }
+        results[key] = value;
+      }
+
+      await uploadResults(results);
+    } catch (err) {
+      alert(`Failed to upload JSON: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    // Reset file input so the same file can be re-selected
+    e.target.value = '';
+  }, [uploadResults]);
+
   // Jump to event handler
   const [jumpValue, setJumpValue] = useState(currentEventIndex);
 
@@ -175,9 +228,19 @@ export function SyncPage() {
             <button className="download-button" onClick={downloadResults}>
               📥 Download Results JSON
             </button>
+            <button className="upload-button" onClick={handleUploadClick}>
+              📤 Upload Results JSON
+            </button>
             <button className="reset-button" onClick={handleResetClick}>
               🔄 Reset All Data
             </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+            />
           </div>
         </div>
 
@@ -200,6 +263,27 @@ export function SyncPage() {
                 </button>
                 <button className="modal-confirm" onClick={handleResetConfirm}>
                   Yes, Reset Everything
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Upload confirmation dialog */}
+        {showUploadConfirm && (
+          <div className="modal-overlay">
+            <div className="modal-dialog">
+              <div className="modal-icon">⚠️</div>
+              <h2>Upload Results JSON?</h2>
+              <p>This will <strong>replace all existing synced results</strong> with the uploaded file.</p>
+              <p>You currently have <strong>{Object.keys(syncedResults).length} synced events</strong> that will be lost.</p>
+              <p className="modal-warning">This action cannot be undone!</p>
+              <div className="modal-buttons">
+                <button className="modal-cancel" onClick={handleUploadCancel}>
+                  Cancel
+                </button>
+                <button className="modal-confirm" onClick={handleUploadConfirm}>
+                  Yes, Replace Results
                 </button>
               </div>
             </div>
@@ -358,9 +442,19 @@ export function SyncPage() {
             <button className="download-button" onClick={downloadResults}>
               📥 Download JSON
             </button>
+            <button className="upload-button" onClick={handleUploadClick}>
+              📤 Upload JSON
+            </button>
             <button className="reset-button" onClick={handleResetClick}>
               🔄 Reset
             </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+            />
           </div>
         </div>
       </div>
@@ -384,6 +478,27 @@ export function SyncPage() {
               </button>
               <button className="modal-confirm" onClick={handleResetConfirm}>
                 Yes, Reset Everything
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload confirmation dialog */}
+      {showUploadConfirm && (
+        <div className="modal-overlay">
+          <div className="modal-dialog">
+            <div className="modal-icon">⚠️</div>
+            <h2>Upload Results JSON?</h2>
+            <p>This will <strong>replace all existing synced results</strong> with the uploaded file.</p>
+            <p>You currently have <strong>{Object.keys(syncedResults).length} synced events</strong> that will be lost.</p>
+            <p className="modal-warning">This action cannot be undone!</p>
+            <div className="modal-buttons">
+              <button className="modal-cancel" onClick={handleUploadCancel}>
+                Cancel
+              </button>
+              <button className="modal-confirm" onClick={handleUploadConfirm}>
+                Yes, Replace Results
               </button>
             </div>
           </div>
